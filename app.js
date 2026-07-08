@@ -48,6 +48,7 @@ const els = {
   spentPercent: document.querySelector("#spentPercent"),
   progressState: document.querySelector("#progressState"),
   spentToday: document.querySelector("#spentToday"),
+  dailyAvailable: document.querySelector("#dailyAvailable"),
   remainingToday: document.querySelector("#remainingToday"),
   carryBalance: document.querySelector("#carryBalance"),
   dailyBase: document.querySelector("#dailyBase"),
@@ -498,8 +499,9 @@ function updateInterface() {
   const percent = today.available > 0 ? Math.round((today.spent / today.available) * 100) : 100;
   const status = getVisualStatus(today.spent, today.available);
 
-  els.availableToday.textContent = formatCurrency(today.available);
+  els.availableToday.textContent = formatCurrency(remaining);
   els.spentToday.textContent = formatCurrency(today.spent);
+  els.dailyAvailable.textContent = formatCurrency(today.available);
   els.remainingToday.textContent = formatCurrency(remaining);
   els.carryBalance.textContent = formatCurrency(today.carry);
   els.dailyBase.textContent = formatCurrency(today.base);
@@ -517,6 +519,7 @@ function updateInterface() {
 function updateEmptyInterface() {
   els.availableToday.textContent = "$0";
   els.spentToday.textContent = "$0";
+  els.dailyAvailable.textContent = "$0";
   els.remainingToday.textContent = "$0";
   els.carryBalance.textContent = "$0";
   els.dailyBase.textContent = "$0";

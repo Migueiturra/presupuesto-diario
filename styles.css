@@ -171,7 +171,13 @@ section {
 
 .today-summary {
   display: grid;
-  gap: 8px;
+  gap: 7px;
+}
+
+.hero-label {
+  color: var(--muted);
+  font-size: 0.95rem;
+  font-weight: 750;
 }
 
 .today-summary h2 {
@@ -237,6 +243,11 @@ section {
   border-radius: 8px;
   padding: 12px;
   background: #fbfcfa;
+}
+
+.metric:has(#remainingToday) {
+  border-color: rgba(15, 118, 110, 0.3);
+  background: var(--mint);
 }
 
 .metric span {

@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#0f766e" />
     <title>Presupuesto Diario</title>
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css?v=6" />
+    <link rel="stylesheet" href="styles.css?v=7" />
   </head>
   <body>
     <main class="app-shell">
@@ -80,6 +80,7 @@
         <section class="today-panel" id="todayPanel">
           <div class="today-summary">
             <p class="muted" id="todayDate">--</p>
+            <p class="hero-label" id="heroLabel">Te queda hoy</p>
             <h2 id="availableToday">$0</h2>
             <p id="statusMessage">Configura tu presupuesto para comenzar.</p>
           </div>
@@ -98,6 +99,10 @@
             <div class="metric">
               <span>Gastado hoy</span>
               <strong id="spentToday">$0</strong>
+            </div>
+            <div class="metric">
+              <span>Disponible hoy</span>
+              <strong id="dailyAvailable">$0</strong>
             </div>
             <div class="metric">
               <span>Restante</span>
@@ -175,6 +180,6 @@
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=6" defer></script>
+    <script src="app.js?v=7" defer></script>
   </body>
 </html>
