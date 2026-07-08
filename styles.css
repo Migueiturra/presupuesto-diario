@@ -132,12 +132,41 @@ section {
 .expense-panel,
 .simulator-panel,
 .history-panel,
+.cloud-panel,
 .today-expenses-panel {
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid rgba(220, 227, 222, 0.95);
   border-radius: 8px;
   box-shadow: var(--shadow);
   padding: 18px;
+}
+
+.cloud-panel {
+  display: grid;
+  gap: 12px;
+  box-shadow: 0 12px 28px rgba(23, 33, 31, 0.06);
+}
+
+.cloud-status {
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.35;
+  margin-top: 4px;
+}
+
+.cloud-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.cloud-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.cloud-actions button {
+  flex: 1;
 }
 
 .today-summary {
@@ -552,12 +581,16 @@ select:focus {
   }
 
   .form-actions,
-  .simulator-row {
+  .simulator-row,
+  .cloud-form,
+  .cloud-actions {
     flex-direction: column;
+    display: flex;
   }
 
   .form-actions button,
-  .simulator-row button {
+  .simulator-row button,
+  .cloud-form button {
     width: 100%;
   }
 }

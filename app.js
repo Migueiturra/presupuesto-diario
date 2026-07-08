@@ -1,3 +1,6 @@
+const SUPABASE_URL = "";
+const SUPABASE_ANON_KEY = "";
+
 const STORAGE_KEY = "presupuesto-diario:v2";
 const LEGACY_STORAGE_KEY = "presupuesto-diario:v1";
 const QUICK_AMOUNTS = [1000, 2000, 3000, 5000, 10000];
@@ -7,12 +10,23 @@ const defaultState = {
   expenses: []
 };
 
-let state = loadData();
+let state = loadLocalData();
 let selectedQuickAmount = null;
+let supabaseClient = null;
+let currentUser = null;
+let isCloudReady = false;
 
 const els = {
   tabs: document.querySelectorAll(".tab-button"),
   views: document.querySelectorAll(".view"),
+  cloudPanel: document.querySelector("#cloudPanel"),
+  cloudTitle: document.querySelector("#cloudTitle"),
+  cloudStatus: document.querySelector("#cloudStatus"),
+  cloudLoginForm: document.querySelector("#cloudLoginForm"),
+  cloudEmail: document.querySelector("#cloudEmail"),
+  cloudActions: document.querySelector("#cloudActions"),
+  syncCloud: document.querySelector("#syncCloud"),
+  logoutCloud: document.querySelector("#logoutCloud"),
   setupPanel: document.querySelector("#setupPanel"),
   expensePanel: document.querySelector("#expensePanel"),
   settingsForm: document.querySelector("#settingsForm"),
@@ -50,41 +64,46 @@ const els = {
 
 init();
 
-function init() {
+async function init() {
   normalizeState();
   renderQuickAmounts();
   bindEvents();
   registerServiceWorker();
+  await initSupabase();
   syncSettingsForm();
   updateInterface();
 }
 
 function bindEvents() {
-  els.tabs.forEach((tab) => {
-    tab.addEventListener("click", () => setActiveTab(tab.dataset.tab));
-  });
-
+  els.tabs.forEach((tab) => tab.addEventListener("click", () => setActiveTab(tab.dataset.tab)));
   els.budgetModeSelect.addEventListener("change", updateAmountLabel);
   els.openSettings.addEventListener("click", () => showSettings(true));
   els.cancelSettings.addEventListener("click", () => showSettings(false));
   els.openExpense.addEventListener("click", () => showExpensePanel(true));
   els.cancelExpense.addEventListener("click", () => showExpensePanel(false));
 
-  els.settingsForm.addEventListener("submit", (event) => {
+  els.cloudLoginForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    saveSettings();
+    await sendMagicLink();
+  });
+  els.syncCloud.addEventListener("click", syncCloudNow);
+  els.logoutCloud.addEventListener("click", logoutCloud);
+
+  els.settingsForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await saveSettings();
   });
 
-  els.expenseForm.addEventListener("submit", (event) => {
+  els.expenseForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const manualAmount = parseAmount(els.expenseAmount.value);
     const amount = manualAmount || selectedQuickAmount;
-    addExpense(amount, els.expenseNote.value.trim());
+    await addExpense(amount, els.expenseNote.value.trim());
   });
 
-  els.todayExpensesList.addEventListener("click", (event) => {
+  els.todayExpensesList.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-delete-expense]");
-    if (button) deleteExpense(button.dataset.deleteExpense);
+    if (button) await deleteExpense(button.dataset.deleteExpense);
   });
 
   els.runSimulation.addEventListener("click", () => {
@@ -102,19 +121,198 @@ function bindEvents() {
     showSaveStatus(permission === "granted" ? "Notificaciones activadas." : "No se activaron las notificaciones.", permission !== "granted");
   });
 
-  els.resetData.addEventListener("click", () => {
+  els.resetData.addEventListener("click", async () => {
     const confirmed = window.confirm("¿Seguro que quieres borrar la configuración y todos los gastos?");
     if (!confirmed) return;
     state = structuredClone(defaultState);
-    saveData();
     selectedQuickAmount = null;
     els.expenseAmount.value = "";
     els.expenseNote.value = "";
     setActiveTab("today");
     syncSettingsForm();
+    await persistData();
     updateInterface();
     showSaveStatus("Datos reiniciados.");
   });
+}
+
+async function initSupabase() {
+  const configured = SUPABASE_URL.startsWith("https://") && SUPABASE_ANON_KEY.length > 20;
+  if (!configured) {
+    updateCloudUi("local");
+    return;
+  }
+
+  if (!window.supabase) {
+    updateCloudUi("error", "No se pudo cargar Supabase. Revisa la conexión.");
+    return;
+  }
+
+  isCloudReady = true;
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const { data } = await supabaseClient.auth.getSession();
+  currentUser = data.session?.user || null;
+
+  supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+    currentUser = session?.user || null;
+    if (currentUser) await loadCloudData();
+    updateCloudUi(currentUser ? "signed-in" : "signed-out");
+    updateInterface();
+  });
+
+  if (currentUser) await loadCloudData();
+  updateCloudUi(currentUser ? "signed-in" : "signed-out");
+}
+
+function updateCloudUi(mode, overrideMessage = "") {
+  if (mode === "local") {
+    els.cloudTitle.textContent = "Modo local";
+    els.cloudStatus.textContent = "Supabase no está configurado. Tus datos quedan en este navegador.";
+    els.cloudLoginForm.hidden = true;
+    els.cloudActions.hidden = true;
+    return;
+  }
+
+  if (mode === "error") {
+    els.cloudTitle.textContent = "Nube no disponible";
+    els.cloudStatus.textContent = overrideMessage;
+    els.cloudLoginForm.hidden = true;
+    els.cloudActions.hidden = true;
+    return;
+  }
+
+  if (mode === "signed-in") {
+    els.cloudTitle.textContent = "Sincronizado";
+    els.cloudStatus.textContent = `Sesión iniciada: ${currentUser.email}`;
+    els.cloudLoginForm.hidden = true;
+    els.cloudActions.hidden = false;
+    return;
+  }
+
+  els.cloudTitle.textContent = "Sincronización";
+  els.cloudStatus.textContent = overrideMessage || "Ingresa tu email para recibir un enlace de acceso.";
+  els.cloudLoginForm.hidden = false;
+  els.cloudActions.hidden = true;
+}
+
+async function sendMagicLink() {
+  if (!isCloudReady || !supabaseClient) return;
+  const email = els.cloudEmail.value.trim();
+  if (!email) {
+    updateCloudUi("signed-out", "Ingresa un email válido.");
+    return;
+  }
+
+  const { error } = await supabaseClient.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: window.location.href.split("#")[0] }
+  });
+
+  updateCloudUi("signed-out", error ? error.message : "Te envié un enlace de acceso al email.");
+}
+
+async function logoutCloud() {
+  if (!supabaseClient) return;
+  await supabaseClient.auth.signOut();
+  currentUser = null;
+  updateCloudUi("signed-out");
+}
+
+async function syncCloudNow() {
+  if (!currentUser) return;
+  await persistCloudData();
+  await loadCloudData();
+  updateInterface();
+  updateCloudUi("signed-in");
+}
+
+async function loadCloudData() {
+  if (!supabaseClient || !currentUser) return;
+
+  const { data: settings, error: settingsError } = await supabaseClient
+    .from("budget_settings")
+    .select("mode, amount, reminder_time, start_date, updated_at")
+    .eq("user_id", currentUser.id)
+    .maybeSingle();
+
+  const { data: expenses, error: expensesError } = await supabaseClient
+    .from("expenses")
+    .select("id, amount, note, date_key, created_at")
+    .eq("user_id", currentUser.id)
+    .order("created_at", { ascending: false });
+
+  if (settingsError || expensesError) {
+    updateCloudUi("signed-in");
+    els.cloudStatus.textContent = "No pude cargar datos de Supabase. Revisa tablas y políticas RLS.";
+    return;
+  }
+
+  if (!settings && state.config) {
+    await persistCloudData();
+    return;
+  }
+
+  state = {
+    config: settings
+      ? {
+          mode: settings.mode,
+          amount: settings.amount,
+          reminderTime: settings.reminder_time || "20:30",
+          startDate: settings.start_date || getTodayKey(),
+          updatedAt: settings.updated_at || new Date().toISOString()
+        }
+      : null,
+    expenses: (expenses || []).map((expense) => ({
+      id: expense.id,
+      amount: expense.amount,
+      note: expense.note || "",
+      dateKey: expense.date_key,
+      createdAt: expense.created_at
+    }))
+  };
+
+  normalizeState();
+  saveLocalData();
+}
+
+async function persistData() {
+  saveLocalData();
+  if (currentUser) await persistCloudData();
+}
+
+async function persistCloudData() {
+  if (!supabaseClient || !currentUser) return;
+
+  if (state.config) {
+    const { error } = await supabaseClient.from("budget_settings").upsert({
+      user_id: currentUser.id,
+      mode: state.config.mode,
+      amount: state.config.amount,
+      reminder_time: state.config.reminderTime || "20:30",
+      start_date: state.config.startDate || getTodayKey(),
+      updated_at: new Date().toISOString()
+    });
+    if (error) throw error;
+  } else {
+    await supabaseClient.from("budget_settings").delete().eq("user_id", currentUser.id);
+  }
+
+  const { error: deleteError } = await supabaseClient.from("expenses").delete().eq("user_id", currentUser.id);
+  if (deleteError) throw deleteError;
+
+  if (!state.expenses.length) return;
+
+  const rows = state.expenses.map((expense) => ({
+    id: expense.id,
+    user_id: currentUser.id,
+    amount: expense.amount,
+    note: expense.note || "",
+    date_key: expense.dateKey,
+    created_at: expense.createdAt
+  }));
+
+  const { error: insertError } = await supabaseClient.from("expenses").insert(rows);
+  if (insertError) throw insertError;
 }
 
 function setActiveTab(tabName) {
@@ -126,7 +324,7 @@ function setActiveTab(tabName) {
   });
 }
 
-function loadData() {
+function loadLocalData() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
     return raw ? JSON.parse(raw) : structuredClone(defaultState);
@@ -139,15 +337,22 @@ function normalizeState() {
   if (!state || typeof state !== "object") state = structuredClone(defaultState);
   if (!Array.isArray(state.expenses)) state.expenses = [];
   if (state.config && !state.config.startDate) state.config.startDate = getTodayKey();
+  state.expenses = state.expenses.map((expense) => ({
+    ...expense,
+    id: isUsableId(expense.id) ? expense.id : crypto.randomUUID(),
+    note: expense.note || "",
+    dateKey: expense.dateKey || getTodayKey(),
+    createdAt: expense.createdAt || new Date().toISOString()
+  }));
 }
 
-function saveData() {
+function saveLocalData() {
   normalizeState();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   localStorage.removeItem(LEGACY_STORAGE_KEY);
 }
 
-function saveSettings() {
+async function saveSettings() {
   const mode = els.budgetModeSelect.value;
   const amount = parseAmount(els.budgetAmount.value);
 
@@ -166,12 +371,14 @@ function saveSettings() {
   };
 
   try {
-    saveData();
+    await persistData();
     updateInterface();
     showSettings(false);
-    showSaveStatus("Presupuesto guardado.");
+    showSaveStatus(currentUser ? "Presupuesto guardado en la nube." : "Presupuesto guardado.");
   } catch {
-    showSaveStatus("No se pudo guardar. Revisa permisos del navegador.", true);
+    showSaveStatus("No se pudo guardar en Supabase. Quedó respaldo local.", true);
+    saveLocalData();
+    updateInterface();
   }
 }
 
@@ -216,7 +423,7 @@ function getHistory(days = 7) {
   });
 }
 
-function addExpense(amount, note = "") {
+async function addExpense(amount, note = "") {
   if (!state.config) {
     showSaveStatus("Primero configura tu presupuesto.", true);
     showSettings(true);
@@ -229,7 +436,7 @@ function addExpense(amount, note = "") {
   }
 
   state.expenses.push({
-    id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+    id: crypto.randomUUID(),
     amount,
     note,
     dateKey: getTodayKey(),
@@ -237,7 +444,7 @@ function addExpense(amount, note = "") {
   });
 
   try {
-    saveData();
+    await persistData();
     selectedQuickAmount = null;
     els.expenseAmount.value = "";
     els.expenseNote.value = "";
@@ -245,13 +452,15 @@ function addExpense(amount, note = "") {
     showExpensePanel(false);
     updateInterface();
   } catch {
-    showSaveStatus("No se pudo guardar el gasto.", true);
+    showSaveStatus("No se pudo guardar en Supabase. Quedó respaldo local.", true);
+    saveLocalData();
+    updateInterface();
   }
 }
 
-function deleteExpense(id) {
+async function deleteExpense(id) {
   state.expenses = state.expenses.filter((expense) => expense.id !== id);
-  saveData();
+  await persistData();
   updateInterface();
 }
 
@@ -515,6 +724,10 @@ function escapeHtml(value) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+function isUsableId(id) {
+  return typeof id === "string" && id.length >= 8;
 }
 
 function maybeShowReminder(today) {

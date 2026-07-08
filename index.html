@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#0f766e" />
     <title>Presupuesto Diario</title>
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css?v=5" />
+    <link rel="stylesheet" href="styles.css?v=6" />
   </head>
   <body>
     <main class="app-shell">
@@ -24,6 +24,22 @@
         <button class="tab-button active" type="button" data-tab="today">Hoy</button>
         <button class="tab-button" type="button" data-tab="tools">Simular e historial</button>
       </nav>
+
+      <section class="cloud-panel" id="cloudPanel">
+        <div>
+          <p class="eyebrow">Nube</p>
+          <h2 id="cloudTitle">Modo local</h2>
+          <p class="cloud-status" id="cloudStatus">Supabase todavía no está configurado.</p>
+        </div>
+        <form class="cloud-form" id="cloudLoginForm" hidden>
+          <input id="cloudEmail" type="email" autocomplete="email" placeholder="tu@email.com" />
+          <button class="secondary-button" type="submit">Enviar acceso</button>
+        </form>
+        <div class="cloud-actions" id="cloudActions" hidden>
+          <button class="ghost-button" id="syncCloud" type="button">Sincronizar</button>
+          <button class="ghost-button" id="logoutCloud" type="button">Salir</button>
+        </div>
+      </section>
 
       <section class="setup-panel" id="setupPanel" hidden>
         <div class="section-heading">
@@ -141,7 +157,7 @@
             <input id="simulationAmount" inputmode="numeric" autocomplete="off" placeholder="Monto" />
             <button class="secondary-button" id="runSimulation" type="button">Calcular</button>
           </div>
-          <p class="simulation-result" id="simulationResult">Escribe un monto para ver que pasaría.</p>
+          <p class="simulation-result" id="simulationResult">Escribe un monto para ver qué pasaría.</p>
         </section>
 
         <section class="history-panel">
@@ -158,6 +174,7 @@
       </div>
     </main>
 
-    <script src="app.js?v=5" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="app.js?v=6" defer></script>
   </body>
 </html>
