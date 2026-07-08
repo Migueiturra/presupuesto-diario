@@ -1,0 +1,18 @@
+{
+  "name": "Presupuesto Diario",
+  "short_name": "Presupuesto",
+  "description": "MVP personal para controlar gastos diarios con saldo acumulado.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f6f7f4",
+  "theme_color": "#0f766e",
+  "lang": "es-CL",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

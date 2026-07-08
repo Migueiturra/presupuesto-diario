@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0f766e" />
+    <title>Presupuesto Diario</title>
+    <link rel="manifest" href="manifest.json" />
+    <link rel="stylesheet" href="styles.css?v=5" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Hoy</p>
+          <h1>Presupuesto diario</h1>
+        </div>
+        <button class="icon-button" id="openSettings" type="button" aria-label="Editar presupuesto" title="Editar presupuesto">
+          <span aria-hidden="true">⚙</span>
+        </button>
+      </header>
+
+      <nav class="tab-nav" aria-label="Secciones">
+        <button class="tab-button active" type="button" data-tab="today">Hoy</button>
+        <button class="tab-button" type="button" data-tab="tools">Simular e historial</button>
+      </nav>
+
+      <section class="setup-panel" id="setupPanel" hidden>
+        <div class="section-heading">
+          <p class="eyebrow">Configuración</p>
+          <h2>Define tu presupuesto</h2>
+        </div>
+        <form id="settingsForm" class="settings-form">
+          <label class="field">
+            <span>Modo</span>
+            <select id="budgetModeSelect" name="budgetMode">
+              <option value="daily">Diario fijo</option>
+              <option value="weekly">Semanal</option>
+              <option value="monthly">Mensual</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span id="amountLabel">Monto diario</span>
+            <input id="budgetAmount" inputmode="numeric" autocomplete="off" placeholder="20000" required />
+          </label>
+
+          <label class="field">
+            <span>Hora de aviso diario</span>
+            <input id="reminderTime" type="time" value="20:30" />
+          </label>
+
+          <button class="notice-button" id="enableNotifications" type="button">Activar notificaciones</button>
+
+          <div class="form-actions">
+            <button class="primary-button" type="submit">Guardar</button>
+            <button class="ghost-button" id="cancelSettings" type="button">Cancelar</button>
+          </div>
+          <p class="save-status" id="saveStatus" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <div class="view active" id="todayView" data-view="today">
+        <section class="today-panel" id="todayPanel">
+          <div class="today-summary">
+            <p class="muted" id="todayDate">--</p>
+            <h2 id="availableToday">$0</h2>
+            <p id="statusMessage">Configura tu presupuesto para comenzar.</p>
+          </div>
+
+          <div class="progress-wrap" aria-label="Avance del gasto">
+            <div class="progress-track">
+              <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-labels">
+              <span id="spentPercent">0%</span>
+              <span id="progressState">Sin datos</span>
+            </div>
+          </div>
+
+          <div class="metric-grid">
+            <div class="metric">
+              <span>Gastado hoy</span>
+              <strong id="spentToday">$0</strong>
+            </div>
+            <div class="metric">
+              <span>Restante</span>
+              <strong id="remainingToday">$0</strong>
+            </div>
+            <div class="metric">
+              <span>Arrastre</span>
+              <strong id="carryBalance">$0</strong>
+            </div>
+            <div class="metric">
+              <span>Base diaria</span>
+              <strong id="dailyBase">$0</strong>
+            </div>
+          </div>
+
+          <button class="add-button" id="openExpense" type="button">+ Agregar gasto</button>
+        </section>
+
+        <section class="expense-panel" id="expensePanel" hidden>
+          <div class="section-heading">
+            <p class="eyebrow">Registro rápido</p>
+            <h2>¿Cuánto gastaste?</h2>
+          </div>
+          <div class="quick-grid" id="quickAmounts"></div>
+          <form id="expenseForm" class="expense-form">
+            <label class="field">
+              <span>Otro monto</span>
+              <input id="expenseAmount" inputmode="numeric" autocomplete="off" placeholder="Ej: 3500" />
+            </label>
+            <label class="field">
+              <span>Nota opcional</span>
+              <input id="expenseNote" maxlength="40" placeholder="cafe, almuerzo, uber..." />
+            </label>
+            <div class="form-actions">
+              <button class="primary-button" type="submit">Registrar</button>
+              <button class="ghost-button" id="cancelExpense" type="button">Cerrar</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="today-expenses-panel">
+          <div class="section-heading compact-heading">
+            <p class="eyebrow">Hoy</p>
+            <h2>Gastos registrados</h2>
+          </div>
+          <div class="today-expenses-list" id="todayExpensesList"></div>
+        </section>
+      </div>
+
+      <div class="view" id="toolsView" data-view="tools" hidden>
+        <section class="simulator-panel">
+          <div class="section-heading">
+            <p class="eyebrow">Simulador</p>
+            <h2>¿Puedo comprar esto?</h2>
+          </div>
+          <div class="simulator-row">
+            <input id="simulationAmount" inputmode="numeric" autocomplete="off" placeholder="Monto" />
+            <button class="secondary-button" id="runSimulation" type="button">Calcular</button>
+          </div>
+          <p class="simulation-result" id="simulationResult">Escribe un monto para ver que pasaría.</p>
+        </section>
+
+        <section class="history-panel">
+          <div class="section-heading">
+            <p class="eyebrow">Últimos 7 días</p>
+            <h2>Historial simple</h2>
+          </div>
+          <div class="history-list" id="historyList"></div>
+        </section>
+
+        <section class="danger-zone">
+          <button class="danger-button" id="resetData" type="button">Reiniciar datos</button>
+        </section>
+      </div>
+    </main>
+
+    <script src="app.js?v=5" defer></script>
+  </body>
+</html>
