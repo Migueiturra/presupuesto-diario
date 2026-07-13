@@ -12,6 +12,8 @@ const defaultState = {
 
 let state = loadLocalData();
 let selectedQuickAmount = null;
+let selectedDateKey = getTodayKey();
+let editingExpenseId = null;
 let supabaseClient = null;
 let currentUser = null;
 let isCloudReady = false;
@@ -35,13 +37,19 @@ const els = {
   cancelSettings: document.querySelector("#cancelSettings"),
   openExpense: document.querySelector("#openExpense"),
   cancelExpense: document.querySelector("#cancelExpense"),
+  previousDay: document.querySelector("#previousDay"),
+  nextDay: document.querySelector("#nextDay"),
+  jumpToday: document.querySelector("#jumpToday"),
+  dateStrip: document.querySelector("#dateStrip"),
+  selectedDayLabel: document.querySelector("#selectedDayLabel"),
+  selectedDateText: document.querySelector("#selectedDateText"),
+  heroLabel: document.querySelector("#heroLabel"),
   budgetModeSelect: document.querySelector("#budgetModeSelect"),
   budgetAmount: document.querySelector("#budgetAmount"),
   amountLabel: document.querySelector("#amountLabel"),
   reminderTime: document.querySelector("#reminderTime"),
   enableNotifications: document.querySelector("#enableNotifications"),
   saveStatus: document.querySelector("#saveStatus"),
-  todayDate: document.querySelector("#todayDate"),
   availableToday: document.querySelector("#availableToday"),
   statusMessage: document.querySelector("#statusMessage"),
   progressFill: document.querySelector("#progressFill"),
@@ -55,7 +63,12 @@ const els = {
   quickAmounts: document.querySelector("#quickAmounts"),
   expenseAmount: document.querySelector("#expenseAmount"),
   expenseNote: document.querySelector("#expenseNote"),
+  submitExpense: document.querySelector("#submitExpense"),
+  clearExpenseEdit: document.querySelector("#clearExpenseEdit"),
+  expenseDateLabel: document.querySelector("#expenseDateLabel"),
+  expenseTitle: document.querySelector("#expenseTitle"),
   todayExpensesList: document.querySelector("#todayExpensesList"),
+  expensesDayLabel: document.querySelector("#expensesDayLabel"),
   simulationAmount: document.querySelector("#simulationAmount"),
   runSimulation: document.querySelector("#runSimulation"),
   simulationResult: document.querySelector("#simulationResult"),
@@ -81,7 +94,14 @@ function bindEvents() {
   els.openSettings.addEventListener("click", () => showSettings(true));
   els.cancelSettings.addEventListener("click", () => showSettings(false));
   els.openExpense.addEventListener("click", () => showExpensePanel(true));
-  els.cancelExpense.addEventListener("click", () => showExpensePanel(false));
+  els.cancelExpense.addEventListener("click", () => {
+    showExpensePanel(false);
+    clearExpenseForm();
+  });
+  els.previousDay.addEventListener("click", () => changeSelectedDay(-1));
+  els.nextDay.addEventListener("click", () => changeSelectedDay(1));
+  els.jumpToday.addEventListener("click", () => setSelectedDate(getTodayKey()));
+  bindDateSwipe();
 
   els.cloudLoginForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -104,7 +124,19 @@ function bindEvents() {
 
   els.todayExpensesList.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-delete-expense]");
-    if (button) await deleteExpense(button.dataset.deleteExpense);
+    if (button) {
+      await deleteExpense(button.dataset.deleteExpense);
+      return;
+    }
+
+    const editButton = event.target.closest("[data-edit-expense]");
+    if (editButton) {
+      startEditExpense(editButton.dataset.editExpense);
+    }
+  });
+
+  els.clearExpenseEdit.addEventListener("click", () => {
+    clearExpenseForm();
   });
 
   els.runSimulation.addEventListener("click", () => {
@@ -126,6 +158,7 @@ function bindEvents() {
     const confirmed = window.confirm("¿Seguro que quieres borrar la configuración y todos los gastos?");
     if (!confirmed) return;
     state = structuredClone(defaultState);
+    selectedDateKey = getTodayKey();
     selectedQuickAmount = null;
     els.expenseAmount.value = "";
     els.expenseNote.value = "";
@@ -135,6 +168,41 @@ function bindEvents() {
     updateInterface();
     showSaveStatus("Datos reiniciados.");
   });
+}
+
+function bindDateSwipe() {
+  let startX = 0;
+  let startY = 0;
+  let pointerDown = false;
+
+  els.dateStrip.addEventListener("pointerdown", (event) => {
+    pointerDown = true;
+    startX = event.clientX;
+    startY = event.clientY;
+  });
+
+  els.dateStrip.addEventListener("pointerup", (event) => {
+    if (!pointerDown) return;
+    pointerDown = false;
+    const deltaX = event.clientX - startX;
+    const deltaY = event.clientY - startY;
+    if (Math.abs(deltaX) < 45 || Math.abs(deltaY) > 55) return;
+    changeSelectedDay(deltaX < 0 ? 1 : -1);
+  });
+
+  els.dateStrip.addEventListener("pointercancel", () => {
+    pointerDown = false;
+  });
+}
+
+function setSelectedDate(dateKey) {
+  selectedDateKey = dateKey;
+  clearExpenseForm();
+  updateInterface();
+}
+
+function changeSelectedDay(delta) {
+  setSelectedDate(toDateKey(addDays(new Date(`${selectedDateKey}T12:00:00`), delta)));
 }
 
 async function initSupabase() {
@@ -167,6 +235,7 @@ async function initSupabase() {
 
 function updateCloudUi(mode, overrideMessage = "") {
   if (mode === "local") {
+    els.cloudPanel.hidden = true;
     els.cloudTitle.textContent = "Modo local";
     els.cloudStatus.textContent = "Supabase no está configurado. Tus datos quedan en este navegador.";
     els.cloudLoginForm.hidden = true;
@@ -175,6 +244,7 @@ function updateCloudUi(mode, overrideMessage = "") {
   }
 
   if (mode === "error") {
+    els.cloudPanel.hidden = false;
     els.cloudTitle.textContent = "Nube no disponible";
     els.cloudStatus.textContent = overrideMessage;
     els.cloudLoginForm.hidden = true;
@@ -183,6 +253,7 @@ function updateCloudUi(mode, overrideMessage = "") {
   }
 
   if (mode === "signed-in") {
+    els.cloudPanel.hidden = false;
     els.cloudTitle.textContent = "Sincronizado";
     els.cloudStatus.textContent = `Sesión iniciada: ${currentUser.email}`;
     els.cloudLoginForm.hidden = true;
@@ -190,6 +261,7 @@ function updateCloudUi(mode, overrideMessage = "") {
     return;
   }
 
+  els.cloudPanel.hidden = false;
   els.cloudTitle.textContent = "Sincronización";
   els.cloudStatus.textContent = overrideMessage || "Ingresa tu email para recibir un enlace de acceso.";
   els.cloudLoginForm.hidden = false;
@@ -394,7 +466,7 @@ function calculateDailyBase(dateKey) {
 function calculateDayRecord(dateKey) {
   if (!state.config) return emptyRecord(dateKey);
 
-  const startDate = state.config.startDate || dateKey;
+  const startDate = getCalculationStartDate(dateKey);
   let carry = 0;
   const cursor = new Date(`${startDate}T00:00:00`);
   const target = new Date(`${dateKey}T00:00:00`);
@@ -424,6 +496,11 @@ function getHistory(days = 7) {
   });
 }
 
+function getCalculationStartDate(dateKey) {
+  const candidates = [state.config?.startDate || dateKey, dateKey, ...state.expenses.map((expense) => expense.dateKey)];
+  return candidates.filter(Boolean).sort()[0] || dateKey;
+}
+
 async function addExpense(amount, note = "") {
   if (!state.config) {
     showSaveStatus("Primero configura tu presupuesto.", true);
@@ -436,20 +513,25 @@ async function addExpense(amount, note = "") {
     return;
   }
 
-  state.expenses.push({
-    id: crypto.randomUUID(),
-    amount,
-    note,
-    dateKey: getTodayKey(),
-    createdAt: new Date().toISOString()
-  });
+  if (editingExpenseId) {
+    state.expenses = state.expenses.map((expense) =>
+      expense.id === editingExpenseId
+        ? { ...expense, amount, note, dateKey: selectedDateKey }
+        : expense
+    );
+  } else {
+    state.expenses.push({
+      id: crypto.randomUUID(),
+      amount,
+      note,
+      dateKey: selectedDateKey,
+      createdAt: new Date().toISOString()
+    });
+  }
 
   try {
     await persistData();
-    selectedQuickAmount = null;
-    els.expenseAmount.value = "";
-    els.expenseNote.value = "";
-    document.querySelectorAll(".quick-amount").forEach((item) => item.classList.remove("selected"));
+    clearExpenseForm();
     showExpensePanel(false);
     updateInterface();
   } catch {
@@ -469,7 +551,7 @@ function simulateExpense(amount) {
   if (!state.config) return "Configura tu presupuesto para poder simular gastos.";
   if (!amount || amount <= 0) return "Escribe un monto válido para simular.";
 
-  const today = calculateDayRecord(getTodayKey());
+  const today = calculateDayRecord(selectedDateKey);
   const remainingAfter = today.available - today.spent - amount;
   const tomorrowBase = calculateDailyBase(toDateKey(addDays(new Date(), 1)));
   const tomorrowAvailable = tomorrowBase + remainingAfter;
@@ -484,8 +566,8 @@ function simulateExpense(amount) {
 function updateInterface() {
   const hasConfig = Boolean(state.config);
   els.setupPanel.hidden = hasConfig;
-  els.todayDate.textContent = formatLongDate(getTodayKey());
   els.openExpense.disabled = !hasConfig;
+  updateDateHeader();
 
   if (!hasConfig) {
     updateEmptyInterface();
@@ -494,7 +576,7 @@ function updateInterface() {
     return;
   }
 
-  const today = calculateDayRecord(getTodayKey());
+  const today = calculateDayRecord(selectedDateKey);
   const remaining = today.available - today.spent;
   const percent = today.available > 0 ? Math.round((today.spent / today.available) * 100) : 100;
   const status = getVisualStatus(today.spent, today.available);
@@ -548,13 +630,13 @@ function renderQuickAmounts() {
 }
 
 function renderTodayExpenses() {
-  const todayExpenses = getExpensesForDate(getTodayKey()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const todayExpenses = getExpensesForDate(selectedDateKey).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   els.todayExpensesList.innerHTML = "";
 
   if (!todayExpenses.length) {
     const empty = document.createElement("p");
     empty.className = "muted";
-    empty.textContent = state.config ? "Todavía no registras gastos hoy." : "Configura tu presupuesto para comenzar.";
+    empty.textContent = state.config ? `No hay gastos registrados para ${getRelativeDayLabel(selectedDateKey).toLowerCase()}.` : "Configura tu presupuesto para comenzar.";
     els.todayExpensesList.append(empty);
     return;
   }
@@ -565,6 +647,7 @@ function renderTodayExpenses() {
     item.innerHTML = `
       <strong>${formatCurrency(expense.amount)}</strong>
       <span class="expense-note">${escapeHtml(expense.note || "Sin nota")}</span>
+      <button class="edit-expense" type="button" data-edit-expense="${expense.id}" aria-label="Editar gasto">Editar</button>
       <button class="delete-expense" type="button" data-delete-expense="${expense.id}" aria-label="Eliminar gasto">×</button>
     `;
     els.todayExpensesList.append(item);
@@ -610,7 +693,47 @@ function showSettings(show) {
 
 function showExpensePanel(show) {
   els.expensePanel.hidden = !show;
-  if (show) els.expenseAmount.focus();
+  if (show) {
+    els.expenseDateLabel.textContent = `${getRelativeDayLabel(selectedDateKey)} · ${formatShortDate(selectedDateKey)}`;
+    els.expenseTitle.textContent = editingExpenseId ? "Editar gasto" : "Registrar gasto";
+    els.submitExpense.textContent = editingExpenseId ? "Guardar cambios" : "Registrar";
+    els.clearExpenseEdit.hidden = !editingExpenseId;
+    els.expenseAmount.focus();
+  }
+}
+
+function clearExpenseForm() {
+  editingExpenseId = null;
+  selectedQuickAmount = null;
+  els.expenseAmount.value = "";
+  els.expenseNote.value = "";
+  els.expenseTitle.textContent = "Registrar gasto";
+  els.submitExpense.textContent = "Registrar";
+  els.clearExpenseEdit.hidden = true;
+  document.querySelectorAll(".quick-amount").forEach((item) => item.classList.remove("selected"));
+}
+
+function startEditExpense(id) {
+  const expense = state.expenses.find((item) => item.id === id);
+  if (!expense) return;
+  editingExpenseId = id;
+  selectedDateKey = expense.dateKey;
+  els.expenseAmount.value = String(expense.amount);
+  els.expenseNote.value = expense.note || "";
+  document.querySelectorAll(".quick-amount").forEach((item) => item.classList.remove("selected"));
+  updateInterface();
+  showExpensePanel(true);
+}
+
+function updateDateHeader() {
+  const label = getRelativeDayLabel(selectedDateKey);
+  els.selectedDayLabel.textContent = label;
+  els.selectedDateText.textContent = formatLongDate(selectedDateKey);
+  els.expensesDayLabel.textContent = label;
+  els.heroLabel.textContent = `Te queda ${label.toLowerCase()}`;
+  els.previousDay.textContent = getRelativeDayLabel(toDateKey(addDays(new Date(`${selectedDateKey}T12:00:00`), -1)));
+  els.nextDay.textContent = getRelativeDayLabel(toDateKey(addDays(new Date(`${selectedDateKey}T12:00:00`), 1)));
+  els.jumpToday.hidden = selectedDateKey === getTodayKey();
 }
 
 function syncSettingsForm() {
@@ -696,6 +819,16 @@ function formatShortDate(dateKey) {
     day: "numeric",
     month: "short"
   }).format(new Date(`${dateKey}T12:00:00`));
+}
+
+function getRelativeDayLabel(dateKey) {
+  const today = getTodayKey();
+  const yesterday = toDateKey(addDays(new Date(), -1));
+  const tomorrow = toDateKey(addDays(new Date(), 1));
+  if (dateKey === today) return "Hoy";
+  if (dateKey === yesterday) return "Ayer";
+  if (dateKey === tomorrow) return "Mañana";
+  return new Intl.DateTimeFormat("es-CL", { weekday: "long" }).format(new Date(`${dateKey}T12:00:00`));
 }
 
 function getTodayKey() {

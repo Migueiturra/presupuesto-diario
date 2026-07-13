@@ -39,7 +39,7 @@ button {
 .app-shell {
   width: min(100%, 760px);
   margin: 0 auto;
-  padding: 20px 16px 36px;
+  padding: 16px 14px 32px;
 }
 
 .topbar {
@@ -47,7 +47,7 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 18px;
+  margin-bottom: 12px;
 }
 
 h1,
@@ -92,14 +92,14 @@ h2 {
 }
 
 section {
-  margin-top: 14px;
+  margin-top: 10px;
 }
 
 .tab-nav {
   display: grid;
   grid-template-columns: 1fr 1.3fr;
   gap: 8px;
-  margin: 0 0 14px;
+  margin: 0 0 10px;
   padding: 5px;
   border: 1px solid rgba(220, 227, 222, 0.95);
   border-radius: 8px;
@@ -138,7 +138,44 @@ section {
   border: 1px solid rgba(220, 227, 222, 0.95);
   border-radius: 8px;
   box-shadow: var(--shadow);
-  padding: 18px;
+  padding: 14px;
+}
+
+.date-strip {
+  display: grid;
+  grid-template-columns: 74px 1fr 74px;
+  gap: 8px;
+  align-items: center;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.date-center {
+  min-width: 0;
+  text-align: center;
+}
+
+.date-center h2 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.date-nav-button,
+.today-jump {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--teal-dark);
+  font-weight: 850;
+}
+
+.today-jump {
+  min-height: 28px;
+  margin-top: 4px;
+  padding: 0 10px;
+  font-size: 0.78rem;
 }
 
 .cloud-panel {
@@ -171,7 +208,7 @@ section {
 
 .today-summary {
   display: grid;
-  gap: 7px;
+  gap: 5px;
 }
 
 .hero-label {
@@ -181,7 +218,7 @@ section {
 }
 
 .today-summary h2 {
-  font-size: clamp(2.7rem, 14vw, 5rem);
+  font-size: clamp(2.5rem, 12vw, 4.5rem);
   line-height: 0.95;
   letter-spacing: 0;
 }
@@ -193,7 +230,7 @@ section {
 }
 
 .progress-wrap {
-  margin-top: 22px;
+  margin-top: 16px;
 }
 
 .progress-track {
@@ -231,11 +268,11 @@ section {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-  margin-top: 18px;
+  margin-top: 12px;
 }
 
 .metric {
-  min-height: 84px;
+  min-height: 72px;
   display: grid;
   align-content: center;
   gap: 8px;
@@ -275,8 +312,8 @@ section {
 
 .add-button {
   width: 100%;
-  min-height: 58px;
-  margin-top: 18px;
+  min-height: 54px;
+  margin-top: 12px;
   color: white;
   background: var(--teal);
   font-size: 1.05rem;
@@ -316,7 +353,7 @@ section {
 .section-heading {
   display: grid;
   gap: 2px;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
 .settings-form,
@@ -424,7 +461,7 @@ select:focus {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .quick-amount {
@@ -469,7 +506,7 @@ select:focus {
 
 .expense-item {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto auto;
   gap: 4px 10px;
   align-items: center;
   border: 1px solid var(--line);
@@ -492,12 +529,53 @@ select:focus {
   width: 36px;
   height: 36px;
   grid-row: 1 / span 2;
-  grid-column: 2;
+  grid-column: 3;
   border: 1px solid rgba(220, 38, 38, 0.28);
   border-radius: 8px;
   background: #fff7f7;
   color: var(--red);
   font-weight: 900;
+}
+
+.edit-expense {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  min-height: 36px;
+  border: 1px solid rgba(15, 118, 110, 0.22);
+  border-radius: 8px;
+  background: var(--mint);
+  color: var(--teal-dark);
+  font-size: 0.82rem;
+  font-weight: 850;
+  padding: 0 10px;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  align-items: end;
+  padding: 12px;
+  background: rgba(23, 33, 31, 0.28);
+}
+
+.modal-backdrop .expense-panel {
+  width: min(100%, 520px);
+  margin: 0 auto;
+  box-shadow: 0 24px 70px rgba(23, 33, 31, 0.24);
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.compact-field {
+  gap: 5px;
 }
 
 .history-item {
@@ -559,24 +637,30 @@ select:focus {
   }
 
   .metric-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 480px) {
   .metric-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .metric {
-    min-height: 68px;
-    grid-template-columns: 1fr auto;
-    align-items: center;
-    align-content: center;
+    min-height: 64px;
   }
 
   .metric span {
-    font-size: 0.9rem;
+    font-size: 0.78rem;
+  }
+
+  .metric strong {
+    font-size: 1.08rem;
+  }
+
+  .today-expenses-panel {
+    max-height: 28vh;
+    overflow: auto;
   }
 }
 

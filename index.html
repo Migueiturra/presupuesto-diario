@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#0f766e" />
     <title>Presupuesto Diario</title>
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css?v=7" />
+    <link rel="stylesheet" href="styles.css?v=8" />
   </head>
   <body>
     <main class="app-shell">
@@ -25,7 +25,7 @@
         <button class="tab-button" type="button" data-tab="tools">Simular e historial</button>
       </nav>
 
-      <section class="cloud-panel" id="cloudPanel">
+      <section class="cloud-panel" id="cloudPanel" hidden>
         <div>
           <p class="eyebrow">Nube</p>
           <h2 id="cloudTitle">Modo local</h2>
@@ -77,9 +77,18 @@
       </section>
 
       <div class="view active" id="todayView" data-view="today">
+        <section class="date-strip" id="dateStrip" aria-label="Navegar fechas">
+          <button class="date-nav-button" id="previousDay" type="button">Ayer</button>
+          <div class="date-center">
+            <p class="eyebrow" id="selectedDayLabel">Hoy</p>
+            <h2 id="selectedDateText">--</h2>
+            <button class="today-jump" id="jumpToday" type="button">Ir a hoy</button>
+          </div>
+          <button class="date-nav-button" id="nextDay" type="button">Mañana</button>
+        </section>
+
         <section class="today-panel" id="todayPanel">
           <div class="today-summary">
-            <p class="muted" id="todayDate">--</p>
             <p class="hero-label" id="heroLabel">Te queda hoy</p>
             <h2 id="availableToday">$0</h2>
             <p id="statusMessage">Configura tu presupuesto para comenzar.</p>
@@ -97,11 +106,11 @@
 
           <div class="metric-grid">
             <div class="metric">
-              <span>Gastado hoy</span>
+              <span>Gastado</span>
               <strong id="spentToday">$0</strong>
             </div>
             <div class="metric">
-              <span>Disponible hoy</span>
+              <span>Disponible</span>
               <strong id="dailyAvailable">$0</strong>
             </div>
             <div class="metric">
@@ -121,31 +130,9 @@
           <button class="add-button" id="openExpense" type="button">+ Agregar gasto</button>
         </section>
 
-        <section class="expense-panel" id="expensePanel" hidden>
-          <div class="section-heading">
-            <p class="eyebrow">Registro rápido</p>
-            <h2>¿Cuánto gastaste?</h2>
-          </div>
-          <div class="quick-grid" id="quickAmounts"></div>
-          <form id="expenseForm" class="expense-form">
-            <label class="field">
-              <span>Otro monto</span>
-              <input id="expenseAmount" inputmode="numeric" autocomplete="off" placeholder="Ej: 3500" />
-            </label>
-            <label class="field">
-              <span>Nota opcional</span>
-              <input id="expenseNote" maxlength="40" placeholder="cafe, almuerzo, uber..." />
-            </label>
-            <div class="form-actions">
-              <button class="primary-button" type="submit">Registrar</button>
-              <button class="ghost-button" id="cancelExpense" type="button">Cerrar</button>
-            </div>
-          </form>
-        </section>
-
         <section class="today-expenses-panel">
           <div class="section-heading compact-heading">
-            <p class="eyebrow">Hoy</p>
+            <p class="eyebrow" id="expensesDayLabel">Hoy</p>
             <h2>Gastos registrados</h2>
           </div>
           <div class="today-expenses-list" id="todayExpensesList"></div>
@@ -179,7 +166,34 @@
       </div>
     </main>
 
+    <div class="modal-backdrop" id="expensePanel" hidden>
+      <section class="expense-panel" role="dialog" aria-modal="true" aria-labelledby="expenseTitle">
+        <div class="modal-head">
+          <div>
+            <p class="eyebrow" id="expenseDateLabel">Hoy</p>
+            <h2 id="expenseTitle">Registrar gasto</h2>
+          </div>
+          <button class="icon-button" id="cancelExpense" type="button" aria-label="Cerrar">×</button>
+        </div>
+        <div class="quick-grid" id="quickAmounts"></div>
+        <form id="expenseForm" class="expense-form">
+          <label class="field compact-field">
+            <span>Monto</span>
+            <input id="expenseAmount" inputmode="numeric" autocomplete="off" placeholder="Ej: 3500" />
+          </label>
+          <label class="field compact-field">
+            <span>Nota opcional</span>
+            <input id="expenseNote" maxlength="40" placeholder="cafe, almuerzo, uber..." />
+          </label>
+          <div class="form-actions">
+            <button class="primary-button" id="submitExpense" type="submit">Registrar</button>
+            <button class="ghost-button" id="clearExpenseEdit" type="button" hidden>Nuevo</button>
+          </div>
+        </form>
+      </section>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=7" defer></script>
+    <script src="app.js?v=8" defer></script>
   </body>
 </html>
