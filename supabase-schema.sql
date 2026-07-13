@@ -12,9 +12,13 @@ create table if not exists public.expenses (
   user_id uuid not null references auth.users(id) on delete cascade,
   amount integer not null check (amount > 0),
   note text not null default '',
+  category text not null default 'other',
   date_key date not null,
   created_at timestamptz not null default now()
 );
+
+alter table public.expenses
+  add column if not exists category text not null default 'other';
 
 create index if not exists expenses_user_date_idx
   on public.expenses (user_id, date_key desc, created_at desc);

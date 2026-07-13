@@ -4,6 +4,14 @@ const SUPABASE_ANON_KEY = "";
 const STORAGE_KEY = "presupuesto-diario:v2";
 const LEGACY_STORAGE_KEY = "presupuesto-diario:v1";
 const QUICK_AMOUNTS = [1000, 2000, 3000, 5000, 10000];
+const CATEGORIES = [
+  { id: "food", label: "Comida", icon: "🍽" },
+  { id: "coffee", label: "Café", icon: "☕" },
+  { id: "transport", label: "Uber", icon: "🚗" },
+  { id: "market", label: "Compras", icon: "🛒" },
+  { id: "fun", label: "Ocio", icon: "🎟" },
+  { id: "other", label: "Otro", icon: "＋" }
+];
 
 const defaultState = {
   config: null,
@@ -14,6 +22,7 @@ let state = loadLocalData();
 let selectedQuickAmount = null;
 let selectedDateKey = getTodayKey();
 let editingExpenseId = null;
+let selectedCategory = "other";
 let supabaseClient = null;
 let currentUser = null;
 let isCloudReady = false;
@@ -61,6 +70,7 @@ const els = {
   carryBalance: document.querySelector("#carryBalance"),
   dailyBase: document.querySelector("#dailyBase"),
   quickAmounts: document.querySelector("#quickAmounts"),
+  categoryPicker: document.querySelector("#categoryPicker"),
   expenseAmount: document.querySelector("#expenseAmount"),
   expenseNote: document.querySelector("#expenseNote"),
   submitExpense: document.querySelector("#submitExpense"),
@@ -81,6 +91,7 @@ init();
 async function init() {
   normalizeState();
   renderQuickAmounts();
+  renderCategories();
   bindEvents();
   registerServiceWorker();
   await initSupabase();
@@ -119,7 +130,7 @@ function bindEvents() {
     event.preventDefault();
     const manualAmount = parseAmount(els.expenseAmount.value);
     const amount = manualAmount || selectedQuickAmount;
-    await addExpense(amount, els.expenseNote.value.trim());
+    await addExpense(amount, els.expenseNote.value.trim(), selectedCategory);
   });
 
   els.todayExpensesList.addEventListener("click", async (event) => {
@@ -310,7 +321,7 @@ async function loadCloudData() {
 
   const { data: expenses, error: expensesError } = await supabaseClient
     .from("expenses")
-    .select("id, amount, note, date_key, created_at")
+    .select("id, amount, note, category, date_key, created_at")
     .eq("user_id", currentUser.id)
     .order("created_at", { ascending: false });
 
@@ -339,6 +350,7 @@ async function loadCloudData() {
       id: expense.id,
       amount: expense.amount,
       note: expense.note || "",
+      category: expense.category || "other",
       dateKey: expense.date_key,
       createdAt: expense.created_at
     }))
@@ -380,6 +392,7 @@ async function persistCloudData() {
     user_id: currentUser.id,
     amount: expense.amount,
     note: expense.note || "",
+    category: expense.category || "other",
     date_key: expense.dateKey,
     created_at: expense.createdAt
   }));
@@ -414,6 +427,7 @@ function normalizeState() {
     ...expense,
     id: isUsableId(expense.id) ? expense.id : crypto.randomUUID(),
     note: expense.note || "",
+    category: expense.category || "other",
     dateKey: expense.dateKey || getTodayKey(),
     createdAt: expense.createdAt || new Date().toISOString()
   }));
@@ -501,7 +515,7 @@ function getCalculationStartDate(dateKey) {
   return candidates.filter(Boolean).sort()[0] || dateKey;
 }
 
-async function addExpense(amount, note = "") {
+async function addExpense(amount, note = "", category = "other") {
   if (!state.config) {
     showSaveStatus("Primero configura tu presupuesto.", true);
     showSettings(true);
@@ -516,7 +530,7 @@ async function addExpense(amount, note = "") {
   if (editingExpenseId) {
     state.expenses = state.expenses.map((expense) =>
       expense.id === editingExpenseId
-        ? { ...expense, amount, note, dateKey: selectedDateKey }
+        ? { ...expense, amount, note, category, dateKey: selectedDateKey }
         : expense
     );
   } else {
@@ -524,6 +538,7 @@ async function addExpense(amount, note = "") {
       id: crypto.randomUUID(),
       amount,
       note,
+      category,
       dateKey: selectedDateKey,
       createdAt: new Date().toISOString()
     });
@@ -629,6 +644,27 @@ function renderQuickAmounts() {
   });
 }
 
+function renderCategories() {
+  els.categoryPicker.innerHTML = "";
+  CATEGORIES.forEach((category) => {
+    const button = document.createElement("button");
+    button.className = "category-chip";
+    button.type = "button";
+    button.dataset.category = category.id;
+    button.innerHTML = `<span aria-hidden="true">${category.icon}</span><strong>${category.label}</strong>`;
+    button.addEventListener("click", () => setSelectedCategory(category.id));
+    els.categoryPicker.append(button);
+  });
+  setSelectedCategory(selectedCategory);
+}
+
+function setSelectedCategory(categoryId) {
+  selectedCategory = CATEGORIES.some((category) => category.id === categoryId) ? categoryId : "other";
+  document.querySelectorAll(".category-chip").forEach((button) => {
+    button.classList.toggle("selected", button.dataset.category === selectedCategory);
+  });
+}
+
 function renderTodayExpenses() {
   const todayExpenses = getExpensesForDate(selectedDateKey).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   els.todayExpensesList.innerHTML = "";
@@ -642,11 +678,12 @@ function renderTodayExpenses() {
   }
 
   todayExpenses.forEach((expense) => {
+    const category = getCategory(expense.category);
     const item = document.createElement("article");
     item.className = "expense-item";
     item.innerHTML = `
       <strong>${formatCurrency(expense.amount)}</strong>
-      <span class="expense-note">${escapeHtml(expense.note || "Sin nota")}</span>
+      <span class="expense-note"><span aria-hidden="true">${category.icon}</span> ${escapeHtml(category.label)}${expense.note ? ` · ${escapeHtml(expense.note)}` : ""}</span>
       <button class="edit-expense" type="button" data-edit-expense="${expense.id}" aria-label="Editar gasto">Editar</button>
       <button class="delete-expense" type="button" data-delete-expense="${expense.id}" aria-label="Eliminar gasto">×</button>
     `;
@@ -705,12 +742,14 @@ function showExpensePanel(show) {
 function clearExpenseForm() {
   editingExpenseId = null;
   selectedQuickAmount = null;
+  selectedCategory = "other";
   els.expenseAmount.value = "";
   els.expenseNote.value = "";
   els.expenseTitle.textContent = "Registrar gasto";
   els.submitExpense.textContent = "Registrar";
   els.clearExpenseEdit.hidden = true;
   document.querySelectorAll(".quick-amount").forEach((item) => item.classList.remove("selected"));
+  setSelectedCategory(selectedCategory);
 }
 
 function startEditExpense(id) {
@@ -720,6 +759,7 @@ function startEditExpense(id) {
   selectedDateKey = expense.dateKey;
   els.expenseAmount.value = String(expense.amount);
   els.expenseNote.value = expense.note || "";
+  setSelectedCategory(expense.category || "other");
   document.querySelectorAll(".quick-amount").forEach((item) => item.classList.remove("selected"));
   updateInterface();
   showExpensePanel(true);
@@ -860,6 +900,10 @@ function escapeHtml(value) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+function getCategory(categoryId) {
+  return CATEGORIES.find((category) => category.id === categoryId) || CATEGORIES.find((category) => category.id === "other");
 }
 
 function isUsableId(id) {

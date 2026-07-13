@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#0f766e" />
     <title>Presupuesto Diario</title>
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css?v=8" />
+    <link rel="stylesheet" href="styles.css?v=9" />
   </head>
   <body>
     <main class="app-shell">
@@ -177,6 +177,7 @@
         </div>
         <div class="quick-grid" id="quickAmounts"></div>
         <form id="expenseForm" class="expense-form">
+          <div class="category-picker" id="categoryPicker" aria-label="Categoría del gasto"></div>
           <label class="field compact-field">
             <span>Monto</span>
             <input id="expenseAmount" inputmode="numeric" autocomplete="off" placeholder="Ej: 3500" />
@@ -194,6 +195,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=8" defer></script>
+    <script src="app.js?v=9" defer></script>
   </body>
 </html>
