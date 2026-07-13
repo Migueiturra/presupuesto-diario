@@ -143,7 +143,7 @@ section {
 
 .date-strip {
   display: grid;
-  grid-template-columns: 74px 1fr 74px;
+  grid-template-columns: 104px 1fr 104px;
   gap: 8px;
   align-items: center;
   touch-action: pan-y;
@@ -168,6 +168,7 @@ section {
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.9);
   color: var(--teal-dark);
+  font-size: 0.9rem;
   font-weight: 850;
 }
 
@@ -672,6 +673,14 @@ select:focus {
 }
 
 @media (max-width: 480px) {
+  .date-strip {
+    grid-template-columns: 84px 1fr 84px;
+  }
+
+  .date-nav-button {
+    font-size: 0.78rem;
+  }
+
   .metric-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

@@ -768,11 +768,11 @@ function startEditExpense(id) {
 function updateDateHeader() {
   const label = getRelativeDayLabel(selectedDateKey);
   els.selectedDayLabel.textContent = label;
-  els.selectedDateText.textContent = formatLongDate(selectedDateKey);
+  els.selectedDateText.textContent = formatCenteredDate(selectedDateKey);
   els.expensesDayLabel.textContent = label;
   els.heroLabel.textContent = `Te queda ${label.toLowerCase()}`;
-  els.previousDay.textContent = getRelativeDayLabel(toDateKey(addDays(new Date(`${selectedDateKey}T12:00:00`), -1)));
-  els.nextDay.textContent = getRelativeDayLabel(toDateKey(addDays(new Date(`${selectedDateKey}T12:00:00`), 1)));
+  els.previousDay.textContent = formatSideDate(toDateKey(addDays(new Date(`${selectedDateKey}T12:00:00`), -1)));
+  els.nextDay.textContent = formatSideDate(toDateKey(addDays(new Date(`${selectedDateKey}T12:00:00`), 1)));
   els.jumpToday.hidden = selectedDateKey === getTodayKey();
 }
 
@@ -853,12 +853,31 @@ function formatLongDate(dateKey) {
   }).format(new Date(`${dateKey}T12:00:00`));
 }
 
+function formatCenteredDate(dateKey) {
+  const date = new Date(`${dateKey}T12:00:00`);
+  const formatted = new Intl.DateTimeFormat("es-CL", {
+    day: "numeric",
+    month: "long"
+  }).format(date);
+  return `${getWeekdayName(dateKey)} · ${formatted}`;
+}
+
+function formatSideDate(dateKey) {
+  const date = new Date(`${dateKey}T12:00:00`);
+  const day = new Intl.DateTimeFormat("es-CL", { day: "numeric" }).format(date);
+  return `${capitalize(getWeekdayName(dateKey))} ${day}`;
+}
+
 function formatShortDate(dateKey) {
   return new Intl.DateTimeFormat("es-CL", {
     weekday: "short",
     day: "numeric",
     month: "short"
   }).format(new Date(`${dateKey}T12:00:00`));
+}
+
+function getWeekdayName(dateKey) {
+  return new Intl.DateTimeFormat("es-CL", { weekday: "long" }).format(new Date(`${dateKey}T12:00:00`));
 }
 
 function getRelativeDayLabel(dateKey) {
@@ -868,7 +887,11 @@ function getRelativeDayLabel(dateKey) {
   if (dateKey === today) return "Hoy";
   if (dateKey === yesterday) return "Ayer";
   if (dateKey === tomorrow) return "Mañana";
-  return new Intl.DateTimeFormat("es-CL", { weekday: "long" }).format(new Date(`${dateKey}T12:00:00`));
+  return getWeekdayName(dateKey);
+}
+
+function capitalize(value) {
+  return String(value).charAt(0).toUpperCase() + String(value).slice(1);
 }
 
 function getTodayKey() {
