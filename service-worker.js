@@ -1,4 +1,4 @@
-const CACHE_NAME = "presupuesto-diario-cache-v10";
+const CACHE_NAME = "presupuesto-diario-cache-v11";
 const ASSETS = [
   "./",
   "index.html",
